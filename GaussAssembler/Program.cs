@@ -3,24 +3,39 @@ using System.Runtime.InteropServices;
 
 class GaussElimination
 {
-    [DllImport(@"D:\STUDIA\ja\gaus\GaussAssembler\x64\Debug\DLL1.dll")]
-    static extern void GaussEliminate(int[,] matrix);
-     
+    [DllImport(@"E:\Studia\JA\GaussAssembler\x64\Debug\Gauss.dll", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void GaussEliminate(int[] matrix);
+
     static void Main()
     {
-        int[,] matrix = {
+        int[] matrix = new int[] {
+            1, 2, 3,
+            4, 5, 6,
+            7, 8, 9
+        };
+
+        int[,] matrix2 = {
             { 1, 2, 3 },
             { 4, 5, 6 },
             { 7, 8, 9 }
         };
 
-        Console.WriteLine("Original matrix:");
-        PrintMatrix(matrix);
+        GaussEliminate(matrix);
 
-        Eliminate(matrix);
+        // Wyświetlenie zmodyfikowanej macierzy
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                Console.Write(matrix[i * 3 + j] + " ");
+            }
+            Console.WriteLine();
+        }
 
-        Console.WriteLine("\nMatrix after Gauss elimination:");
-        PrintMatrix(matrix);
+
+        Eliminate(matrix2);
+
+        PrintMatrix(matrix2);
     }
 
     static void Eliminate(int[,] matrix)

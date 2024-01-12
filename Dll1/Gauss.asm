@@ -1,75 +1,49 @@
 .code
-section .text
-global GaussEliminate
 
-; GaussEliminate - Procedura eliminacji Gaussa dla macierzy
-; Parametry:
-;   rdi - wskaŸnik do macierzy (int[,])
-; Zwracane wartoœci:
-;   Brak (void)
+; Eksport funkcji GaussEliminate
+GaussEliminate proc
+    ; Parametry:
+    ; RCX - wskaŸnik na macierz 3x3 (int*)
 
-GaussEliminate:
     push rbp
     mov rbp, rsp
+    sub rsp, 20h ; Alokacja miejsca na stosie dla zmiennych lokalnych
 
-    ; Pobierz adres macierzy do rsi
-    mov rsi, rdi
+    mov rsi, rcx ; rsi - wskaŸnik na macierz
 
-    ; Zainicjuj zmienne
-    xor ecx, ecx ; ecx - iteracja po pivotach
-    xor edx, edx ; edx - wartoœæ wiersza
-    xor eax, eax ; eax - wartoœæ kolumny
-    xor ebx, ebx ; ebx - wartoœæ czynnika
+    ; Eliminacja Gaussa dla pierwszego pivotu (element [0][0])
+    mov eax, [rsi+4*3]   ; Wczytaj element [1][0]
+    mov ebx, [rsi]       ; Wczytaj pivot [0][0] do ebx
+    cdq                  ; Rozszerz eax do edx:eax
+    idiv ebx             ; Dzieli edx:eax przez ebx, eax = mno¿nik dla drugiego wiersza
+    mov ebx, eax         ; Zapisz mno¿nik w ebx
 
-outer_loop:
-    cmp ecx, [rsi + 4] ; Porównaj ecx (iteracja po pivotach) z iloœci¹ wierszy - 1
-    jge end_outer_loop ; Jeœli ecx >= iloœci wierszy - 1, zakoñcz pêtlê zewnêtrzn¹
+    ; Aktualizuj drugi wiersz
+    mov edx, [rsi+4*4]  ; Wczytaj [1][1]
+    imul edx, ebx       ; Pomnó¿ [1][1] przez mno¿nik
+    sub [rsi+4*4], edx  ; Aktualizuj [1][1] przez odejmowanie
+    mov edx, [rsi+4*5]  ; Wczytaj [1][2]
+    imul edx, ebx       ; Pomnó¿ [1][2] przez mno¿nik
+    sub [rsi+4*5], edx  ; Aktualizuj [1][2] przez odejmowanie
 
-    inc ecx ; Inkrementuj ecx (pivot)
+   ; Przygotuj do aktualizacji trzeciego wiersza
+mov eax, [rsi+4*6]  ; Wczytaj [2][0]
+mov ebx, [rsi]      ; Wczytaj pivot [0][0] do ebx
+cdq                 ; Rozszerz eax do edx:eax
+idiv ebx            ; Dzieli edx:eax przez ebx, eax = mno¿nik dla trzeciego wiersza
+mov ebx, eax        ; Zapisz mno¿nik w ebx
 
-    ; Ustaw wartoœci rejestrów
-    xor edx, edx ; Zeruj edx (wartoœæ wiersza)
-    mov eax, ecx ; eax = ecx (pivot)
+; Aktualizuj trzeci wiersz
+mov eax, [rsi+4*7]  ; Wczytaj [2][1]
+imul eax, ebx       ; Pomnó¿ [2][1] przez mno¿nik
+sub [rsi+4*7], eax  ; Aktualizuj [2][1] przez odejmowanie
+mov eax, [rsi+4*8]  ; Wczytaj [2][2]
+imul eax, ebx       ; Pomnó¿ [2][2] przez mno¿nik
+sub [rsi+4*8], eax  ; Aktualizuj [2][2] przez odejmowanie
 
-inner_loop:
-    cmp edx, [rsi + 8] ; Porównaj edx (wartoœæ wiersza) z iloœci¹ wierszy
-    jge end_inner_loop ; Jeœli edx >= iloœci wierszy, zakoñcz pêtlê wewnêtrzn¹
-
-    inc edx ; Inkrementuj edx (wartoœæ wiersza)
-
-    ; Oblicz czynnik
-    mov ebx, dword [rsi + rdx*4 + eax*4] ; ebx = matrix[row, pivot]
-    cdq ; Rozszerzenie znaku wartoœci w eax do edx (EDX:EAX = eax)
-    idiv dword [rsi + rcx*4 + rcx*4] ; eax = ebx / matrix[pivot, pivot]
-
-    ; Aktualizuj wartoœci macierzy
-    imul ebx, eax ; ebx = eax * matrix[pivot, pivot]
-    neg eax ; eax = -eax
-    add eax, edx ; eax = row
-    lea rdi, [rsi + rax*4 + rcx*4] ; Adres matrix[row, pivot]
-    mov eax, ecx ; eax = pivot
-
-    inc eax ; Inkrementuj eax (kolumna)
-    mov edx, [rsi + 8] ; edx = rowCount
-
-update_matrix_loop:
-    cmp eax, edx ; Porównaj eax (kolumna) z iloœci¹ kolumn
-    jge inner_loop ; Jeœli eax >= iloœci kolumn, zakoñcz pêtlê aktualizacji macierzy
-
-    mov eax, [rsi + rdx*4 + rcx*4] ; eax = matrix[row, col]
-    imul eax, ebx ; eax = ebx * matrix[row, col]
-    sub dword [rdi], eax ; matrix[row, col] -= eax
-
-    add rdi, 4 ; Przesuñ wskaŸnik macierzy na kolejny element
-    inc ecx ; Inkrementuj ecx (pivot)
-    inc eax ; Inkrementuj eax (kolumna)
-    jmp update_matrix_loop ; Powtórz pêtlê aktualizacji macierzy
-
-end_inner_loop:
-    jmp outer_loop ; Powtórz pêtlê zewnêtrzn¹
-
-end_outer_loop:
+    ; Przywrócenie oryginalnego stosu
+    mov rsp, rbp
     pop rbp
     ret
-
-    end
+GaussEliminate endp
+end
