@@ -1,6 +1,5 @@
 .code
 
-; Eksport funkcji GaussEliminate
 GaussEliminate proc
     ; Parametry:
     ; RCX - wskaŸnik na macierz 3x3 (int*)
@@ -16,13 +15,18 @@ GaussEliminate proc
     mov eax, [rsi+4*3]   ; Wczytaj element [1][0]
     mov ebx, [rsi]       ; Wczytaj pivot [0][0] do ebx
     cdq                  ; Rozszerz eax do edx:eax
-    idiv ebx             ; Dzieli edx:eax przez ebx, eax = mno¿nik dla drugiego wiersza
+    idiv ebx             ; Dzieli edx:eax przez ebx, eax = mno¿nik dla drugiego wiersza 
+
+    ; Teraz wykonaj operacjê eax = eax - (eax * ebx)
+    ;imul ebx            ; Pomnó¿ eax przez ebx, wynik w eax
+    ;neg eax             ; Neguj eax, aby zamieniæ wynik mno¿enia na wartoœæ ujemn¹
+    ;add eax, [rsi+4*3]  ; Dodaj oryginalny element [1][0] do eax (który teraz zawiera -eax*ebx)
 
     ; Aktualizuj drugi wiersz
     mov ebx, eax         ; Zapisz mno¿nik w ebx
     mov ecx, [rsi+4]     ; Wczytaj element [0][1]
     imul ecx, ebx        ; Pomnó¿ przez mno¿nik
-    mov edx, [rsi+4*4]   ; Wczytaj [1][1]
+    mov edx, [rsi+4*4]   ; Wczytaj [1][1] 
     sub edx, ecx         ; Aktualizuj [1][1]
     mov [rsi+4*4], edx   ; Zapisz now¹ wartoœæ [1][1]
     mov ecx, [rsi+8]     ; Wczytaj element [0][2]
