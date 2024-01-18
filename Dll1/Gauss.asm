@@ -1,72 +1,97 @@
 .code
-
 GaussEliminate proc
-    ; Parametry:
-    ; RCX - wskaŸnik na macierz 3x3 (int*)
+    ; Parameters:
+    ; RCX - pointer to the matrix (int*)
+    ; RDX - number of columns
+    ; R8  - number of rows
 
     push rbp
     mov rbp, rsp
-    sub rsp, 20h ; Alokacja miejsca na stosie dla zmiennych lokalnych
+    sub rsp, 20h ; Allocate space on the stack for local variables (32 bytes)
 
-    mov rsi, rcx ; rsi - wskaŸnik na macierz
+    mov rsi, rcx ; rsi - pointer to the matrix
 
-    ; Pierwszy krok eliminacji Gaussa (pierwszy pivot)
-    ; Eliminacja elementów w kolumnie poni¿ej pierwszego pivotu
-    mov eax, [rsi+4*3]   ; Wczytaj element [1][0]
-    mov ebx, [rsi]       ; Wczytaj pivot [0][0] do ebx
-    cdq                  ; Rozszerz eax do edx:eax
-    idiv ebx             ; Dzieli edx:eax przez ebx, eax = mno¿nik dla drugiego wiersza 
+    ; Iteration through columns
+    mov r9, rdx   ; r9 = number of columns
+    mov r10, r8   ; r10 = number of rows
 
-    ; Teraz wykonaj operacjê eax = eax - (eax * ebx)
-    ;imul ebx            ; Pomnó¿ eax przez ebx, wynik w eax
-    ;neg eax             ; Neguj eax, aby zamieniæ wynik mno¿enia na wartoœæ ujemn¹
-    ;add eax, [rsi+4*3]  ; Dodaj oryginalny element [1][0] do eax (który teraz zawiera -eax*ebx)
+    mov r11, 0    ; r11 = index of the current column
 
-    ; Aktualizuj drugi wiersz
-    mov ebx, eax         ; Zapisz mno¿nik w ebx
-    mov ecx, [rsi+4]     ; Wczytaj element [0][1]
-    imul ecx, ebx        ; Pomnó¿ przez mno¿nik
-    mov edx, [rsi+4*4]   ; Wczytaj [1][1] 
-    sub edx, ecx         ; Aktualizuj [1][1]
-    mov [rsi+4*4], edx   ; Zapisz now¹ wartoœæ [1][1]
-    mov ecx, [rsi+8]     ; Wczytaj element [0][2]
-    imul ecx, ebx        ; Pomnó¿ przez mno¿nik
-    mov edx, [rsi+4*5]   ; Wczytaj [1][2]
-    sub edx, ecx         ; Aktualizuj [1][2]
-    mov [rsi+4*5], edx   ; Zapisz now¹ wartoœæ [1][2]
+next_column:
 
-    ; Aktualizuj trzeci wiersz
-    mov eax, [rsi+4*6]   ; Wczytaj [2][0]
-    mov ebx, [rsi]       ; Wczytaj pivot [0][0] do ebx
-    cdq                  ; Rozszerz eax do edx:eax
-    idiv ebx             ; Dzieli edx:eax przez ebx, eax = mno¿nik dla trzeciego wiersza
-    mov ebx, eax         ; Zapisz mno¿nik w ebx
-    mov ecx, [rsi+4]     ; Wczytaj element [0][1]
-    imul ecx, ebx        ; Pomnó¿ przez mno¿nik
-    mov edx, [rsi+4*7]   ; Wczytaj [2][1]
-    sub edx, ecx         ; Aktualizuj [2][1]
-    mov [rsi+4*7], edx   ; Zapisz now¹ wartoœæ [2][1]
-    mov ecx, [rsi+8]     ; Wczytaj element [0][2]
-    imul ecx, ebx        ; Pomnó¿ przez mno¿nik
-    mov edx, [rsi+4*8]   ; Wczytaj [2][2]
-    sub edx, ecx         ; Aktualizuj [2][2]
-    mov [rsi+4*8], edx   ; Zapisz now¹ wartoœæ [2][2]
+    ; Iteration through rows below the current column
+    mov r12, r11    ; r12 = index of the current row
+    inc r12          ; Skip the current column
 
-    ; Drugi krok eliminacji Gaussa (drugi pivot)
-    mov eax, [rsi+4*7]   ; Wczytaj element [2][1] (ju¿ zmodyfikowany)
-    mov ebx, [rsi+4*4]   ; Wczytaj pivot [1][1] do ebx
-    cdq                  ; Rozszerz eax do edx:eax
-    idiv ebx             ; Dzieli edx:eax przez ebx, eax = mno¿nik dla trzeciego wiersza
-    mov ebx, eax         ; Zapisz mno¿nik w ebx
-    mov ecx, [rsi+4*5]   ; Wczytaj element [1][2]
-    imul ecx, ebx        ; Pomnó¿ przez mno¿nik
-    mov edx, [rsi+4*8]   ; Wczytaj [2][2]
-    sub edx, ecx         ; Aktualizuj [2][2]
-    mov [rsi+4*8], edx   ; Zapisz now¹ wartoœæ [2][2]
+next_row:
 
-    ; Przywrócenie oryginalnego stosu
-    mov rsp, rbp
-    pop rbp
-    ret
+    ; Load element [r12][r11]
+    mov rcx, r12
+    imul rcx, r9
+    add rcx, r11
+    mov rax, [rsi + 4 * rcx]
+
+    ; Load pivot [r11][r11]
+    mov rcx, r11
+    imul rcx, r9
+    add rcx, r11
+    mov rbx, [rsi + 4 * rcx]
+
+    ; Check for division by zero
+    test rbx, rbx
+    jz division_by_zero
+
+    cdq                  ; Extend eax to edx:eax
+    idiv rbx             ; Divide edx:eax by rbx, eax = multiplier
+
+    ; Iteration through the remaining columns
+    mov r13, r11        ; r13 = index of the column to update
+    inc r13             ; Skip the current column
+
+update_column:
+
+    ; Load element [r12][r13]
+    mov rcx, r12
+    imul rcx, r9
+    add rcx, r13
+    mov ecx, [rsi + 4 * rcx]
+
+    ; Multiply by the multiplier
+    imul ecx, eax
+
+    ; Load the original element [r11][r13]
+    mov rcx, r11
+    imul rcx, r9
+    add rcx, r13
+    mov edx, [rsi + 4 * rcx]
+
+    ; Update element [r12][r13]
+    sub edx, ecx
+    mov rcx, r12
+    imul rcx, r9
+    add rcx, r13
+    mov [rsi + 4 * rcx], edx
+
+    inc r13
+    cmp r13, r9
+    jl update_column
+
+    ; Move to the next row
+    inc r12
+    cmp r12, r10
+    jl next_row
+
+; Move to the next column
+inc r11
+cmp r11, r9
+jl next_column
+
+division_by_zero:
+; Handle division by zero error if needed
+
+; Restore the original stack
+mov rsp, rbp
+pop rbp
+ret
 GaussEliminate endp
 end
