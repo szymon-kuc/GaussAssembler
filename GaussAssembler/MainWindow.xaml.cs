@@ -4,6 +4,8 @@ using System.Numerics;
 using System;
 using System.Linq;
 using System.Windows.Forms;
+using System.Threading;
+using System.Data;
 
 namespace GaussEliminationApp
 {
@@ -22,6 +24,8 @@ namespace GaussEliminationApp
         private Button btnCalculate;
         private ComboBox methodSelector; // Nowa kontrolka do wyboru metody
         private ComboBox matrixSizeSelector;
+        private DataGridView resultGrid;
+        private TextBox avgTimeTextBox;
 
         public Form1() 
         {
@@ -69,7 +73,11 @@ namespace GaussEliminationApp
         private void ResetResults()
         {
             int selectedSize = matrixSizeSelector.SelectedIndex + 2;
-
+            if (resultLabels == null)
+            {
+                // Initialize resultLabels if it's null
+                resultLabels = new Label[selectedSize, selectedSize + 1];
+            }
             // Check if resultLabels is not null and has the same dimensions as selectedSize
             if (resultLabels != null && resultLabels.GetLength(0) == selectedSize && resultLabels.GetLength(1) == selectedSize + 1)
             {
@@ -82,6 +90,39 @@ namespace GaussEliminationApp
                     }
                 }
             }
+
+            resultGrid = new DataGridView
+            {
+                Location = new System.Drawing.Point(10, 250),
+                Size = new System.Drawing.Size(400, 120),
+                ColumnCount = 3,
+                Columns =
+                {
+                    new DataGridViewTextBoxColumn { Name = "Threads", HeaderText = "Threads" },
+                    new DataGridViewTextBoxColumn { Name = "Time", HeaderText = "Time (ms)" },
+                    new DataGridViewTextBoxColumn { Name = "AverageTime", HeaderText = "Average Time (ms)", ReadOnly = true }
+                },
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToResizeColumns = false,
+                AllowUserToResizeRows = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells,
+                RowHeadersVisible = false,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter, Font = new System.Drawing.Font("Arial", 9.75F, FontStyle.Bold) },
+                DefaultCellStyle = new DataGridViewCellStyle { Alignment = DataGridViewContentAlignment.MiddleCenter }
+            };
+            this.Controls.Add(resultGrid);
+
+            avgTimeTextBox = new TextBox
+            {
+                Location = new System.Drawing.Point(10, 380),
+                Size = new System.Drawing.Size(400, 20),
+                ReadOnly = true
+            };
+            this.Controls.Add(avgTimeTextBox);
+
         }
         private void CreateTextBoxes()
         {
@@ -130,6 +171,8 @@ namespace GaussEliminationApp
                 int selectedSize = matrixSizeSelector.SelectedIndex + 2;
                 int[,] matrix = new int[selectedSize, selectedSize + 1];
 
+               
+
                 for (int i = 0; i < selectedSize; i++)
                 {
                     for (int j = 0; j < selectedSize + 1; j++)
@@ -138,55 +181,72 @@ namespace GaussEliminationApp
                     }
                 }
 
-                if (methodSelector.SelectedIndex == 0)
+                int numRuns = 5; // Number of runs for averaging results
+                int[] threadCounts = { 1, 2, 4, 8, 16, 32, 64 };
+
+                DataTable resultsTable = new DataTable();
+                resultsTable.Columns.Add("Threads", typeof(int));
+                resultsTable.Columns.Add("Time", typeof(double));
+                resultsTable.Columns.Add("AverageTime", typeof(double));
+
+                double totalMilliseconds = 0;
+
+                foreach (int threads in threadCounts)
                 {
-                    int[] flatMatrix = new int[selectedSize * (selectedSize + 1)];
-                    for (int i = 0; i < selectedSize; i++)
+
+                    for (int run = 0; run < numRuns; run++)
                     {
-                        for (int j = 0; j < selectedSize + 1; j++)
+                        Stopwatch stopwatch = new Stopwatch();
+                        stopwatch.Start();
+
+                        if (methodSelector.SelectedIndex == 0)
                         {
-                            flatMatrix[i * (selectedSize + 1) + j] = matrix[i, j];
+                            int[] flatMatrix = new int[selectedSize * (selectedSize + 1)];
+                            for (int i = 0; i < selectedSize; i++)
+                            {
+                                for (int j = 0; j < selectedSize + 1; j++)
+                                {
+                                    flatMatrix[i * (selectedSize + 1) + j] = matrix[i, j];
+                                }
+                            }
+                            Parallel.For(0, threads, new ParallelOptions { MaxDegreeOfParallelism = threads }, _ =>
+                            {
+                                GaussEliminate(flatMatrix, selectedSize, selectedSize + 1);
+                            });
+
+
+                            for (int i = 0; i < selectedSize; i++)
+                            {
+                                for (int j = 0; j < selectedSize + 1; j++)
+                                {
+                                    matrix[i, j] = flatMatrix[i * (selectedSize + 1) + j];
+                                }
+                            }
+
                         }
-                    }
-
-                    Stopwatch stopwatch = new Stopwatch();
-                    stopwatch.Start();
-
-                    GaussEliminate(flatMatrix , selectedSize , selectedSize + 1);
-
-                    stopwatch.Stop();
-                    MessageBox.Show("Czas wykonania: " + stopwatch.ElapsedMilliseconds + " ms");
-
-                    for (int i = 0; i < selectedSize; i++)
-                    {
-                        for (int j = 0; j < selectedSize + 1; j++)
+                        else
                         {
-                            matrix[i, j] = flatMatrix[i * (selectedSize + 1) + j];
+
+                            Parallel.For(0, threads, new ParallelOptions { MaxDegreeOfParallelism = threads }, _ =>
+                            {
+                                Eliminate(matrix);
+                            });
                         }
+
+                        stopwatch.Stop();
+                        totalMilliseconds += stopwatch.ElapsedMilliseconds;
                     }
-                }
-                else
-                {
-                    Debug.WriteLine("Using C# method");
-                    Stopwatch stopwatch2 = new Stopwatch();
-                    stopwatch2.Start();
 
-                    Eliminate(matrix);
+                    double averageTime = totalMilliseconds / numRuns;
+                    resultsTable.Rows.Add(threads, totalMilliseconds, averageTime);
 
-                    stopwatch2.Stop();
-                    MessageBox.Show("Czas wykonania: " + stopwatch2.ElapsedMilliseconds + " ms");
+                    totalMilliseconds = 0;
                 }
 
-                // Debugging: Print the matrix after elimination
-                Debug.WriteLine("Matrix after elimination:");
-                for (int i = 0; i < selectedSize; i++)
-                {
-                    for (int j = 0; j < selectedSize + 1; j++)
-                    {
-                        Debug.Write(matrix[i, j] + "\t");
-                    }
-                    Debug.WriteLine("");
-                }
+                resultGrid.DataSource = resultsTable;
+
+                double avgTime = resultsTable.AsEnumerable().Average(row => row.Field<double>("AverageTime"));
+                avgTimeTextBox.Text = $"Averaged Time: {avgTime} ms";
 
                 // wypisanie wyniku
                 for (int i = 0; i < selectedSize; i++)
