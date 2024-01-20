@@ -11,12 +11,12 @@ namespace GaussEliminationApp
 {
     public partial class Form1 : Form
     {
-        //SCIERZKI DO DLL NIE RUSZAĆ NIE ZMIENIAĆ :)
+        //SCIEŻKI DO DLL NIE RUSZAĆ NIE ZMIENIAĆ :)
         //Wiktor-PC D:\STUDIA\ja\gauss\x64\Debug
         //Wiktor-laptop C:\Users\Vikus\source\repos\GaussAssembler\x64\Debug\
+        //Szymon-komp E:\Studia\JA\GaussAssembler\x64\Debug\Gauss.dll
 
-
-        [DllImport(@"E:\Studia\JA\GaussAssembler\x64\Debug\Gauss.dll", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(@"C:\Users\Vikus\source\repos\GaussAssembler\x64\Debug\Gauss.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void GaussEliminate(double[] matrix, int columns, int rows);
 
         private TextBox[,] inputBoxes;
@@ -69,7 +69,7 @@ namespace GaussEliminationApp
         private void MatrixSizeSelector_SelectedIndexChanged(object sender, EventArgs e)
         {
             CreateTextBoxes();
-            ResetResults();
+       
         }
         private void ResetResults()
         {
@@ -212,7 +212,7 @@ namespace GaussEliminationApp
                             }
                             Parallel.For(0, threads, new ParallelOptions { MaxDegreeOfParallelism = threads }, _ =>
                             {
-                                int rows = selectedSize;
+                           
 
                                 GaussEliminate(flatMatrix, selectedSize, selectedSize + 1);
                             });
