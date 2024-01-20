@@ -16,8 +16,8 @@ namespace GaussEliminationApp
         //Wiktor-laptop C:\Users\Vikus\source\repos\GaussAssembler\x64\Debug\
 
 
-        [DllImport(@"D:\STUDIA\ja\gauss\x64\Debug\Gauss.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern void GaussEliminate(int[] matrix, int columns, int rows);
+        [DllImport(@"E:\Studia\JA\GaussAssembler\x64\Debug\Gauss.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void GaussEliminate(double[] matrix, int columns, int rows);
 
         private TextBox[,] inputBoxes;
         private Label[,] resultLabels;
@@ -44,8 +44,9 @@ namespace GaussEliminationApp
             this.Controls.Add(matrixSizeSelector);
 
             CreateTextBoxes();
+            ResetResults();
 
-                  //przycisk do urchomienia obliczeń
+            //przycisk do urchomienia obliczeń
             btnCalculate = new Button
             {
                 Text = "Oblicz",
@@ -86,7 +87,7 @@ namespace GaussEliminationApp
                     for (int j = 0; j < selectedSize + 1; j++)
                     {
                         resultLabels[i, j].Text = "";
-                        resultLabels[i, j].Hide();
+                   
                     }
                 }
             }
@@ -94,7 +95,7 @@ namespace GaussEliminationApp
             resultGrid = new DataGridView
             {
                 Location = new System.Drawing.Point(10, 250),
-                Size = new System.Drawing.Size(400, 120),
+                Size = new System.Drawing.Size(800, 120),
                 ColumnCount = 3,
                 Columns =
                 {
@@ -169,7 +170,7 @@ namespace GaussEliminationApp
             try
             {
                 int selectedSize = matrixSizeSelector.SelectedIndex + 2;
-                int[,] matrix = new int[selectedSize, selectedSize + 1];
+                double[,] matrix = new double[selectedSize, selectedSize + 1];
 
                
 
@@ -201,7 +202,7 @@ namespace GaussEliminationApp
 
                         if (methodSelector.SelectedIndex == 0)
                         {
-                            int[] flatMatrix = new int[selectedSize * (selectedSize + 1)];
+                            double[] flatMatrix = new double[selectedSize * (selectedSize + 1)];
                             for (int i = 0; i < selectedSize; i++)
                             {
                                 for (int j = 0; j < selectedSize + 1; j++)
@@ -211,6 +212,8 @@ namespace GaussEliminationApp
                             }
                             Parallel.For(0, threads, new ParallelOptions { MaxDegreeOfParallelism = threads }, _ =>
                             {
+                                int rows = selectedSize;
+
                                 GaussEliminate(flatMatrix, selectedSize, selectedSize + 1);
                             });
 
@@ -265,20 +268,53 @@ namespace GaussEliminationApp
 
 
         //funkcja rozwiazania macierzy w c# 
-        static void Eliminate(int[,] matrix)
+        static void Eliminate(double[,] matrix)
         {
-            int rowCount = matrix.GetLength(0);
-            int colCount = matrix.GetLength(1);
-            for (int pivot = 0; pivot < rowCount - 1; pivot++)
+            int rows = matrix.GetLength(0);
+            int cols = matrix.GetLength(1);
+            // Wykonanie eliminacji Gaussa
+            for (int pivot = 0; pivot < rows; pivot++)
             {
-                for (int row = pivot + 1; row < rowCount; row++)
+                // Normalizacja pivotu
+                double pivotValue = matrix[pivot, pivot];
+                if (pivotValue == 0)
                 {
-                    double factor = (double)matrix[row, pivot] / matrix[pivot, pivot];
-                    for (int col = pivot; col < colCount; col++)
+                    Console.WriteLine("Nie można rozwiązać - dzielenie przez zero.");
+                    return;
+                }
+
+                for (int col = 0; col < cols; col++)
+                {
+                    matrix[pivot, col] /= pivotValue;
+                }
+
+                // Eliminacja dla wierszy poniżej pivotu
+                for (int row = pivot + 1; row < rows; row++)
+                {
+                    double factor = matrix[row, pivot];
+                    for (int col = 0; col < cols; col++)
                     {
-                        matrix[row, col] -= (int)(factor * matrix[pivot, col]);
+                        matrix[row, col] -= factor * matrix[pivot, col];
                     }
                 }
+            }
+
+            // Wsteczna substitucja
+            double[] solution = new double[rows];
+            for (int row = rows - 1; row >= 0; row--)
+            {
+                solution[row] = matrix[row, cols - 1];
+                for (int i = row + 1; i < rows; i++)
+                {
+                    solution[row] -= matrix[row, i] * solution[i];
+                }
+            }
+
+            // Wyświetlenie rozwiązania
+            Console.WriteLine("Rozwiązanie układu równań:");
+            for (int i = 0; i < solution.Length; i++)
+            {
+                Console.WriteLine($"x{i + 1} = {solution[i]}");
             }
         }
     }
