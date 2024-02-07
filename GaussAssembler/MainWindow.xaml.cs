@@ -36,7 +36,7 @@ namespace GaussEliminationApp
         {
             matrixSizeSelector = new ComboBox
             {
-                Items = { "2x2", "3x3", "4x4" },
+                Items = { "3x3", "5x5","8x8" },
                 SelectedIndex = 0,
                 Location = new System.Drawing.Point(10, 10)
             };
@@ -50,7 +50,7 @@ namespace GaussEliminationApp
             btnCalculate = new Button
             {
                 Text = "Oblicz",
-                Location = new System.Drawing.Point(10, 220)
+                Location = new System.Drawing.Point(10, 320)
             };
             btnCalculate.Click += btnCalculate_Click; //odwołanie do funkcji on click 
             this.Controls.Add(btnCalculate);
@@ -62,7 +62,7 @@ namespace GaussEliminationApp
             {
                 Items = { "Metoda Asemblera", "Metoda C#" },
                 SelectedIndex = 0,
-                Location = new System.Drawing.Point(10, 160)
+                Location = new System.Drawing.Point(10, 280)
             };
             this.Controls.Add(methodSelector);
         }
@@ -73,7 +73,14 @@ namespace GaussEliminationApp
         }
         private void ResetResults()
         {
-            int selectedSize = matrixSizeSelector.SelectedIndex + 2;
+            int p = 0;
+            switch (matrixSizeSelector.SelectedIndex)
+            {
+                case 0: { p = 1; break; }
+                case 1: { p = 2; break; }
+                case 2: { p = 4; break; }
+            }
+            int selectedSize = matrixSizeSelector.SelectedIndex + 2 + p;
             if (resultLabels == null)
             {
                 // Initialize resultLabels if it's null
@@ -94,7 +101,7 @@ namespace GaussEliminationApp
 
             resultGrid = new DataGridView
             {
-                Location = new System.Drawing.Point(10, 250),
+                Location = new System.Drawing.Point(10, 350),
                 Size = new System.Drawing.Size(800, 120),
                 ColumnCount = 3,
                 Columns =
@@ -137,8 +144,15 @@ namespace GaussEliminationApp
                 this.Controls.Remove(control);
             }
 
-
-            int selectedSize = matrixSizeSelector.SelectedIndex + 2;
+            int p = 0;
+            switch (matrixSizeSelector.SelectedIndex)
+            {
+                case 0: {  p = 1; break; }
+                case 1: { p = 2; break; }
+                case 2: { p = 4; break; }
+            }
+     
+            int selectedSize = matrixSizeSelector.SelectedIndex + 2 + p;
 
             inputBoxes = new TextBox[selectedSize, selectedSize + 1];
             resultLabels = new Label[selectedSize, selectedSize + 1];
@@ -165,157 +179,205 @@ namespace GaussEliminationApp
                 }
             }
         }
-        private void btnCalculate_Click(object sender, EventArgs e)
+        private async void btnCalculate_Click(object sender, EventArgs e)
         {
+            btnCalculate.Enabled = false;
+            btnCalculate.Text = "Obliczanie...";
+
+            int methodSelected = methodSelector.SelectedIndex;
+
             try
             {
-                int selectedSize = matrixSizeSelector.SelectedIndex + 2;
+                int p = 0;
+                switch (matrixSizeSelector.SelectedIndex)
+                {
+                    case 0: { p = 1; break; }
+                    case 1: { p = 2; break; }
+                    case 2: { p = 4; break; }
+                }
+                int selectedSize = matrixSizeSelector.SelectedIndex + 2 + p;
                 double[,] matrix = new double[selectedSize, selectedSize + 1];
-
-               
 
                 for (int i = 0; i < selectedSize; i++)
                 {
                     for (int j = 0; j < selectedSize + 1; j++)
                     {
-                        matrix[i, j] = Convert.ToInt32(inputBoxes[i, j].Text);
+                        matrix[i, j] = Convert.ToDouble(inputBoxes[i, j].Text);
                     }
                 }
-
-                int numRuns = 5; // Number of runs for averaging results
-                int[] threadCounts = { 1, 2, 4, 8, 16, 32, 64 };
 
                 DataTable resultsTable = new DataTable();
                 resultsTable.Columns.Add("Threads", typeof(int));
-                resultsTable.Columns.Add("Time", typeof(double));
-                resultsTable.Columns.Add("AverageTime", typeof(double));
+                resultsTable.Columns.Add("Time (ms)", typeof(double));
+                resultsTable.Columns.Add("AverageTime (ms)", typeof(double));
 
-                double totalMilliseconds = 0;
+                int[] threadCounts = { 1, 2, 4, 8, 16, 32, 64 };
+                int numRuns = 5; // Number of runs for averaging results
 
-                foreach (int threads in threadCounts)
+                //Tylko do wypisania wyniku
+                if (methodSelected == 0)
                 {
-
-                    for (int run = 0; run < numRuns; run++)
-                    {
-                        Stopwatch stopwatch = new Stopwatch();
-                        stopwatch.Start();
-
-                        if (methodSelector.SelectedIndex == 0)
-                        {
-                            double[] flatMatrix = new double[selectedSize * (selectedSize + 1)];
-                            for (int i = 0; i < selectedSize; i++)
-                            {
-                                for (int j = 0; j < selectedSize + 1; j++)
-                                {
-                                    flatMatrix[i * (selectedSize + 1) + j] = matrix[i, j];
-                                }
-                            }
-                            Parallel.For(0, threads, new ParallelOptions { MaxDegreeOfParallelism = threads }, _ =>
-                            {
-                           
-
-                                GaussEliminate(flatMatrix, selectedSize, selectedSize + 1);
-                            });
-
-
-                            for (int i = 0; i < selectedSize; i++)
-                            {
-                                for (int j = 0; j < selectedSize + 1; j++)
-                                {
-                                    matrix[i, j] = flatMatrix[i * (selectedSize + 1) + j];
-                                }
-                            }
-
-                        }
-                        else
-                        {
-
-                            Parallel.For(0, threads, new ParallelOptions { MaxDegreeOfParallelism = threads }, _ =>
-                            {
-                                Eliminate(matrix);
-                            });
-                        }
-
-                        stopwatch.Stop();
-                        totalMilliseconds += stopwatch.ElapsedMilliseconds;
-                    }
-
-                    double averageTime = totalMilliseconds / numRuns;
-                    resultsTable.Rows.Add(threads, totalMilliseconds, averageTime);
-
-                    totalMilliseconds = 0;
+                    double[] flatMatrix = FlattenMatrix(matrix);
+                    GaussEliminate(flatMatrix, selectedSize, selectedSize + 1);
+                    UpdateUIWithResults(matrix, selectedSize);
                 }
+                else
+                {
+                    Eliminate(matrix);
+                    UpdateUIWithResults(matrix, selectedSize);
+                }
+
+                await Task.Run(() =>
+                {
+                    foreach (int threads in threadCounts)
+                    {
+                        double totalMilliseconds = 0;
+
+                        for (int run = 0; run < numRuns; run++)
+                        {
+                            Stopwatch stopwatch = Stopwatch.StartNew();
+
+                            if (methodSelected == 0) // Założenie, że 0 to Gauss w ASM
+                            {
+                                double[] flatMatrix = FlattenMatrix(matrix);
+
+                                Parallel.For(0, threads, new ParallelOptions { MaxDegreeOfParallelism = threads }, _ =>
+                                {
+                                    GaussEliminate(flatMatrix, selectedSize, selectedSize + 1);
+                                });
+                            }
+                            else // Założenie, że każdy inny wybór to metoda w C#
+                            {
+                                var matrixCopy = (double[,])matrix.Clone();
+                                Parallel.For(0, threads, new ParallelOptions { MaxDegreeOfParallelism = threads }, _ =>
+                                {
+                                    Eliminate(matrixCopy);
+                                 
+                                });
+                            }
+
+                            stopwatch.Stop();
+                            totalMilliseconds += stopwatch.ElapsedMilliseconds;
+                        }
+
+                        double averageTime = totalMilliseconds / numRuns;
+                        this.Invoke(new Action(() =>
+                        {
+                            resultsTable.Rows.Add(threads, totalMilliseconds, averageTime);
+                        }));
+
+                     
+                           
+                    }
+                });
 
                 resultGrid.DataSource = resultsTable;
 
-                double avgTime = resultsTable.AsEnumerable().Average(row => row.Field<double>("AverageTime"));
-                avgTimeTextBox.Text = $"Averaged Time: {avgTime} ms";
+                double avgTime = Convert.ToDouble(resultsTable.Compute("AVG([AverageTime (ms)])", string.Empty));
+                avgTimeTextBox.Invoke(new Action(() => avgTimeTextBox.Text = $"Averaged Time: {avgTime} ms"));
 
-                // wypisanie wyniku
-                for (int i = 0; i < selectedSize; i++)
-                {
-                    for (int j = 0; j < selectedSize + 1; j++)
-                    { 
-                        resultLabels[i, j].Text = matrix[i, j].ToString();
-                    }
-                }
+            
+
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error: " + ex.Message);
             }
+            finally
+            {
+                btnCalculate.Enabled = true;
+                btnCalculate.Text = "Oblicz";
+            }
         }
+
+        private void UpdateUIWithResults(double[,] matrix, int selectedSize)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => UpdateUIWithResults(matrix, selectedSize)));
+            }
+            else
+            {
+                // Wypisanie wyniku
+                for (int i = 0; i < selectedSize; i++)
+                {
+                    for (int j = 0; j < selectedSize + 1; j++)
+                    {
+                        resultLabels[i, j].Text = matrix[i, j].ToString();
+                    }
+                }
+            }
+        }
+
+        double[] FlattenMatrix(double[,] matrix)
+        {
+            int rows = matrix.GetLength(0);
+            int cols = matrix.GetLength(1);
+            double[] flatMatrix = new double[rows * cols];
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = 0; j < cols; j++)
+                {
+                    flatMatrix[i * cols + j] = matrix[i, j];
+                }
+            }
+            return flatMatrix;
+        }
+
+
 
 
         //funkcja rozwiazania macierzy w c# 
         static void Eliminate(double[,] matrix)
         {
-            int rows = matrix.GetLength(0);
-            int cols = matrix.GetLength(1);
-            // Wykonanie eliminacji Gaussa
-            for (int pivot = 0; pivot < rows; pivot++)
-            {
-                // Normalizacja pivotu
-                double pivotValue = matrix[pivot, pivot];
-                if (pivotValue == 0)
+                int rows = matrix.GetLength(0);
+                int cols = matrix.GetLength(1);
+                // Wykonanie eliminacji Gaussa
+                for (int pivot = 0; pivot < rows; pivot++)
                 {
-                    Console.WriteLine("Nie można rozwiązać - dzielenie przez zero.");
-                    return;
-                }
+                    // Normalizacja pivotu
+                    double pivotValue = matrix[pivot, pivot];
+                    if (pivotValue == 0)
+                    {
+                        Console.WriteLine("Nie można rozwiązać - dzielenie przez zero.");
+                        return;
+                    }
 
-                for (int col = 0; col < cols; col++)
-                {
-                    matrix[pivot, col] /= pivotValue;
-                }
-
-                // Eliminacja dla wierszy poniżej pivotu
-                for (int row = pivot + 1; row < rows; row++)
-                {
-                    double factor = matrix[row, pivot];
                     for (int col = 0; col < cols; col++)
                     {
-                        matrix[row, col] -= factor * matrix[pivot, col];
+                        matrix[pivot, col] /= pivotValue;
+                    }
+
+                    // Eliminacja dla wierszy poniżej pivotu
+                    for (int row = pivot + 1; row < rows; row++)
+                    {
+                        double factor = matrix[row, pivot];
+                        for (int col = 0; col < cols; col++)
+                        {
+                            matrix[row, col] -= factor * matrix[pivot, col];
+                        }
                     }
                 }
-            }
 
-            // Wsteczna substitucja
-            double[] solution = new double[rows];
-            for (int row = rows - 1; row >= 0; row--)
-            {
-                solution[row] = matrix[row, cols - 1];
-                for (int i = row + 1; i < rows; i++)
+                /*
+                // Wsteczna substitucja
+                double[] solution = new double[rows];
+                for (int row = rows - 1; row >= 0; row--)
                 {
-                    solution[row] -= matrix[row, i] * solution[i];
+                    solution[row] = matrix[row, cols - 1];
+                    for (int i = row + 1; i < rows; i++)
+                    {
+                        solution[row] -= matrix[row, i] * solution[i];
+                    }
                 }
-            }
 
-            // Wyświetlenie rozwiązania
-            Console.WriteLine("Rozwiązanie układu równań:");
-            for (int i = 0; i < solution.Length; i++)
-            {
-                Console.WriteLine($"x{i + 1} = {solution[i]}");
+                // Wyświetlenie rozwiązania
+                Console.WriteLine("Rozwiązanie układu równań:");
+                for (int i = 0; i < solution.Length; i++)
+                {
+                    Console.WriteLine($"x{i + 1} = {solution[i]}");
+                }
+                */
             }
-        }
     }
 }
